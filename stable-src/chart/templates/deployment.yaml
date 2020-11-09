@@ -1,0 +1,209 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "trackableappname" . }}-nginx
+  annotations: {}
+  labels:
+    app: {{ template "appname" . }}-nginx
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "appname" . }}-nginx
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      annotations:
+        checksum/application-secrets: "{{ .Values.application.secretChecksum }}"
+{{- if .Values.podAnnotations }}
+{{ toYaml .Values.podAnnotations | indent 8 }}
+{{- end }}
+      labels:
+        app: {{ template "appname" . }}-nginx
+        track: "{{ .Values.application.track }}"
+        tier: "{{ .Values.application.tier }}"
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}-nginx
+        image: "{{ .Values.image.nginx.repository }}:{{ .Values.image.nginx.tag }}"
+        imagePullPolicy: {{ .Values.image.nginx.pullPolicy }}
+        {{- if .Values.application.nginx.secrets }}
+        envFrom:
+        - secretRef:
+            name: {{ .Values.application.nginx.secretName }}
+        {{- end }}
+        {{- with .Values.application.nginx.env }}
+        env:
+          - name: SQUID_IP
+            value: {{ template "fullname" $ }}-squid
+          - name: ICAP_URL
+            value: icap://${{ template "icap_host" $ }}:1344/gw_rebuild
+        {{- range $key, $val := . }}
+          - name: "{{ tpl $key $  }}"
+            value: "{{ tpl $val $  }}"
+        {{- end }}
+        {{- end }}
+        ports:
+        - name: "{{ .Values.service.nginx.name }}"
+          containerPort: {{ .Values.service.nginx.internalPort }}
+        {{- if .Values.livenessProbe.squid }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.livenessProbe.path }}
+            port: {{ .Values.service.internalPort }}
+            scheme: {{ .Values.livenessProbe.scheme }}
+          initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.livenessProbe.timeoutSeconds }}
+        {{- end }}
+        {{- if .Values.readinessProbe.squid }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.readinessProbe.path }}
+            port: {{ .Values.service.internalPort }}
+            scheme: {{ .Values.readinessProbe.scheme }}
+          initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
+        {{- end }}
+        resources:
+{{ toYaml .Values.resources.nginx | indent 12 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "trackableappname" . }}-squid
+  annotations: {}
+  labels:
+    app: {{ template "appname" . }}-squid
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "appname" . }}-squid
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      annotations:
+        checksum/application-secrets: "{{ .Values.application.secretChecksum }}"
+{{- if .Values.podAnnotations }}
+{{ toYaml .Values.podAnnotations | indent 8 }}
+{{- end }}
+      labels:
+        app: {{ template "appname" . }}-squid
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}-squid
+        image: "{{ .Values.image.squid.repository }}:{{ .Values.image.squid.tag }}"
+        imagePullPolicy: {{ .Values.image.squid.pullPolicy }}
+        {{- if .Values.application.squid.secrets }}
+        envFrom:
+        - secretRef:
+            name: {{ .Values.application.squid.secretName }}
+        {{- end }}
+        env:
+          - name: ICAP_URL
+            value: icap://${{ template "icap_host" $ }}:1344/gw_rebuild
+        {{- with .Values.application.squid.env }}
+        {{- range $key, $val := . }}
+          - name: "{{ tpl $key $  }}"
+            value: "{{ tpl $val $  }}"
+        {{- end }}
+        {{- end }}
+        {{- if .Values.service.squid }}
+        ports:
+        - name: "{{ .Values.service.squid.name }}"
+          containerPort: {{ .Values.service.squid.internalPort }}
+        {{- end }}
+        {{- if .Values.livenessProbe.squid }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.livenessProbe.squid.path }}
+            port: {{ .Values.service.squid.internalPort }}
+            scheme: {{ .Values.livenessProbe.squid.scheme }}
+          initialDelaySeconds: {{ .Values.livenessProbe.squid.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.livenessProbe.squid.timeoutSeconds }}
+        {{- end }}
+        {{- if .Values.readinessProbe.squid }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.readinessProbe.squid.path }}
+            port: {{ .Values.service.squid.internalPort }}
+            scheme: {{ .Values.readinessProbe.squid.scheme }}
+          initialDelaySeconds: {{ .Values.readinessProbe.squid.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.readinessProbe.squid.timeoutSeconds }}
+        {{- end }}
+        resources:
+{{ toYaml .Values.resources.squid | indent 12 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ template "trackableappname" . }}-icap
+  annotations: {}
+  labels:
+    app: {{ template "appname" . }}-icap
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ template "appname" . }}-icap
+  replicas: {{ .Values.replicaCount }}
+  template:
+    metadata:
+      annotations:
+        checksum/application-secrets: "{{ .Values.application.secretChecksum }}"
+{{- if .Values.podAnnotations }}
+{{ toYaml .Values.podAnnotations | indent 8 }}
+{{- end }}
+      labels:
+        app: {{ template "appname" . }}-icap
+        release: {{ .Release.Name }}
+    spec:
+      containers:
+      - name: {{ .Chart.Name }}-icap
+        image: "{{ .Values.image.icap.repository }}:{{ .Values.image.icap.tag }}"
+        imagePullPolicy: {{ .Values.image.icap.pullPolicy }}
+        {{- if .Values.application.icap.secrets }}
+        envFrom:
+        - secretRef:
+            name: {{ .Values.application.icap.secretName }}
+        {{- end }}
+        {{- with .Values.application.icap.env }}
+        env:
+        {{- range $key, $val := . }}
+          - name: "{{ tpl $key $  }}"
+            value: "{{ tpl $val $  }}"
+        {{- end }}
+        {{- end }}
+        {{- if .Values.service.icap }}
+        ports:
+        - name: "{{ .Values.service.icap.name }}"
+          containerPort: {{ .Values.service.icap.internalPort }}
+        {{- end }}
+        {{- if .Values.livenessProbe.icap }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.livenessProbe.icap.path }}
+            port: {{ .Values.service.icap.internalPort }}
+            scheme: {{ .Values.livenessProbe.icap.scheme }}
+          initialDelaySeconds: {{ .Values.livenessProbe.icap.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.livenessProbe.icap.timeoutSeconds }}
+        {{- end }}
+        {{- if .Values.readinessProbe.icap }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.readinessProbe.icap.path }}
+            port: {{ .Values.service.icap.internalPort }}
+            scheme: {{ .Values.readinessProbe.icap.scheme }}
+          initialDelaySeconds: {{ .Values.readinessProbe.icap.initialDelaySeconds }}
+          timeoutSeconds: {{ .Values.readinessProbe.icap.timeoutSeconds }}
+        {{- end }}
+        resources:
+{{ toYaml .Values.resources.icap | indent 12 }}

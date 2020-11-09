@@ -1,0 +1,25 @@
+{{- if .Values.service.icap.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "fullname" . }}-icap
+{{- if .Values.service.icap.annotations }}
+  annotations:
+{{ toYaml .Values.service.icap.annotations | indent 4 }}
+{{- end }}
+  labels:
+    app: {{ template "appname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.service.icap.type }}
+  ports:
+  - port: {{ .Values.service.icap.externalPort }}
+    targetPort: {{ .Values.service.icap.internalPort }}
+    protocol: TCP
+    name: {{ .Values.service.icap.name }}
+  selector:
+    app: {{ template "appname" . }}-icap
+{{- end -}}
+
