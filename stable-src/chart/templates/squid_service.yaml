@@ -1,0 +1,25 @@
+
+{{- if .Values.service.squid.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "fullname" . }}-squid
+{{- if .Values.service.squid.annotations }}
+  annotations:
+{{ toYaml .Values.service.squid.annotations | indent 4 }}
+{{- end }}
+  labels:
+    app: {{ template "appname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  type: {{ .Values.service.squid.type }}
+  ports:
+  - port: {{ .Values.service.squid.externalPort }}
+    targetPort: {{ .Values.service.squid.internalPort }}
+    protocol: TCP
+    name: {{ .Values.service.squid.name }}
+  selector:
+    app: {{ template "appname" . }}-squid
+{{- end -}}

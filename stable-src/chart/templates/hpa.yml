@@ -1,0 +1,49 @@
+{{- if .Values.scale.nginx.enabled -}}
+apiVersion: autoscaling/v2beta1 
+kind: HorizontalPodAutoscaler 
+metadata: 
+  name: {{ template "fullname" . }}-nginx
+  labels:
+    app: {{ template "appname" . }}-nginx
+spec: 
+  maxReplicas: {{ .Values.scale.nginx.MaxReplicaCount }}
+  minReplicas: {{ .Values.scale.nginx.MinReplicaCount }}  
+  scaleTargetRef: 
+    apiVersion: extensions/v1beta1
+    kind: Deployment 
+    name: {{ template "trackableappname" . }}-nginx
+  metrics: 
+  - type: Resource 
+    resource: 
+      name: cpu 
+      targetAverageUtilization: 75
+  - type: Resource 
+    resource: 
+      name: memory 
+      targetAverageUtilization: 75
+{{- end -}}
+---
+{{- if .Values.scale.nginx.enabled -}}
+apiVersion: autoscaling/v2beta1 
+kind: HorizontalPodAutoscaler 
+metadata: 
+  name: {{ template "fullname" . }}-squid
+  labels:
+    app: {{ template "appname" . }}-squid
+spec: 
+  maxReplicas: {{ .Values.scale.squid.MaxReplicaCount }}
+  minReplicas: {{ .Values.scale.squid.MinReplicaCount }}  
+  scaleTargetRef: 
+    apiVersion: extensions/v1beta1
+    kind: Deployment 
+    name: {{ template "trackableappname" . }}-squid
+  metrics: 
+  - type: Resource 
+    resource: 
+      name: cpu 
+      targetAverageUtilization: 75
+  - type: Resource 
+    resource: 
+      name: memory 
+      targetAverageUtilization: 80
+{{- end -}}
