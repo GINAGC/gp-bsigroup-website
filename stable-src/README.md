@@ -1,4 +1,4 @@
-# Reverse Proxy Setup for https://www.bsigroup.com/en-GB (Primary URL), https://page.bsigroup.com/ (CDN URL)
+# Reverse Proxy Setup for https://www.bsigroup.com/en-GB (Primary URL), https://page.bsigroup.com/ (CDN URL) + include cert manager
 
 ## Rancher
 
