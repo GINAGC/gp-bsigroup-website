@@ -2,14 +2,18 @@
 
 ## Introdution 
 
-The current reverse Squid proxy send everything to ICAP server
-ICAP server take more time and resources to process unsupported files
+ The current reverse Squid proxy send everything to ICAP server
+ 
+ ICAP server take more time and resources to process unsupported files
+ 
 Re-build Squid proxy to only send supported files to ICAP server
  
 ## Purpose
 
 Only send supported files to ICAP
+
 Save ICAP ' cost and resources
+
 Redute ICAP processing time and reduce loading time
 
 ## Configuration
