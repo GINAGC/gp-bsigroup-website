@@ -1,0 +1,17 @@
+@startuml
+actor User
+
+!$file = '<file>.pdf/doc/xls/img'
+
+User -> "https://www.bsigroup.com.glasswall-icap.com (NGINX)": GET /$file Request
+
+"https://www.bsigroup.com.glasswall-icap.com (NGINX)"-> SQUID : Get /$file Request
+SQUID -> "https://www.bsigroup.com" : Get /$file Request
+"https://www.bsigroup.com" -> SQUID : return $file
+SQUID -> ICAP : submit $file for Inspection
+ICAP -> ICAP : Files Inspection and processing
+ICAP -> SQUID : Inspected and processed File
+
+SQUID -> "https://www.bsigroup.com.glasswall-icap.com (NGINX)" : return Inspected and processed file
+"https://www.bsigroup.com.glasswall-icap.com (NGINX)" -> User : $file
+@enduml

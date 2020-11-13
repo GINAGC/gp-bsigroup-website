@@ -1,6 +1,6 @@
-# Reverse Proxy Setup for https://www.bsigroup.com/en-GB (Primary URL), https://page.bsigroup.com/ (CDN URL)
+# Reverse Proxy Setup for https://www.bsigroup.com/en-GB (Primary URL), https://page.bsigroup.com/ (CDN URL) + include cert manager
 
-### Rancher
+## Rancher
 
 Rancher is a container management platform built for organizations that deploy containers in production. Rancher makes it easy to run Kubernetes everywhere, meet IT requirements, and empower DevOps teams.
 
@@ -72,3 +72,122 @@ Verify that the setup works, Commands bellow should generate some output
 kubectl get nodes
 kubectl get all --all-namespaces
 ``` 
+
+## Deploy adaptation service and proxies (Run all these commands from your machine)
+
+### Clone the needed repositories
+```
+git clone https://github.com/k8-proxy/icap-infrastructure
+git clone https://github.com/k8-proxy/k8-reverse-proxy.git
+git clone https://github.com/k8-proxy/s-k8-proxy-rebuild.git
+```
+### Install ICAP server and adaptation service
+
+Switch to icap-infrastructure repo  
+```
+cd icap-infrastructure/adaptation
+```
+
+Create the Kubernetes namespace
+```
+kubectl create ns icap-adaptation
+```
+
+Create container registry secret
+```
+kubectl create -n icap-adaptation secret docker-registry regcred	\ 
+	--docker-server=https://index.docker.io/v1/ 	\
+	--docker-username=<username>	\
+	--docker-password=<password>	\
+	--docker-email=<email address>
+```
+
+copy the updated helm template file mvp-icap-service-configmap.yml from gp-emma-dataport-website repo to the templates folder 
+```
+cp ../../gp-emma-dataport-website/patch/mvp-icap-service-configmap.yml templates/
+```
+
+Install the cluster components
+```
+helm install . --namespace icap-adaptation --generate-name
+```
+
+The cluster's services should now be deployed
+```
+> kubectl get pods -n icap-adaptation
+NAME                                 READY   STATUS    RESTARTS   AGE
+adaptation-service-64cc49f99-kwfp6   1/1     Running   0          3m22s
+mvp-icap-service-b7ddccb9-gf4z6      1/1     Running   0          3m22s
+rabbitmq-controller-747n4            1/1     Running   0          3m22s
+```
+### Setup squid icap client and nginx for reverse proxy
+
+1. Switch to s-k8-proxy-rebuild repo
+
+  ```bash
+    cd ../../k8-reverse-proxy/stable-src/
+  ```
+
+Build and push the needed images to your dockerhub registry
+  ```bash
+    docker build nginx -t <docker registry>/reverse-proxy-nginx:0.0.1
+    docker push <docker registry>/reverse-proxy-nginx:0.0.1
+
+    docker build squid -t <docker registry>/reverse-proxy-squid:0.0.1
+    docker push <docker registry>/reverse-proxy-squid:0.0.1
+  ```
+2. Setup cert manager
+
+Switch to the gp-bsigroup-website repo
+  ```bash
+    cd ../../gp-bsigroup-website/stable-src/
+  ```
+Create cert manager namespace
+  ```bash
+    $ cd ../../icap-infrastructure
+    $ kubectl create namespace cert-manager
+  ```
+
+Install cert manager controller
+  ```bash
+    $ kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v0.12.0/cert-manager.yaml
+  ```
+
+Make sure the pods are running
+  ```bash
+    $ kubectl apply --validate=false -f https://github.com/jetstack/cert-manager/releases/download/v0.12.0/cert-manager.yaml
+  ```
+
+Setup letsencrypt issuer
+  ```bash
+    $ kubectl -n icap-adaptation apply -f manifest.yml
+  ```
+3. Setup reverse proxy k8s deployment repo
+
+File value.yaml has been modified to include some features :
+
+  ```bash
+    Change allow domain to target bsigroup.com, page.bsigroup.com
+    Set default ICAP_URL point to Glasswall offcial ICAP server
+    Enable Ingress
+    Auto deploy cert-manager for domain bsigroup.com.glasswall-icap.com
+  ```
+Setup the services (If you are proxying another site, use that site url instead of the one defined bellow)
+  ```bash
+    helm upgrade --namespace icap-adaptation upgrade --install \
+	--set image.nginx.repository=<docker registry>/reverse-proxy-nginx \
+	--set image.nginx.tag=0.0.1 \
+	--set image.squid.repository=<docker registry>/reverse-proxy-squid \
+	--set image.squid.tag=0.0.1 \
+	--set image.icap.repository=<docker registry>/reverse-proxy-c-icap \
+	--set image.icap.tag=0.0.1 \
+	reverse-proxy chart/
+  ```
+Get the ingress external IP
+ ```bash
+    $ kubectl -n icap-adaptation get ing
+  ```  
+
+Record the ingress ip from the last step and add it to your host file
+ ```
+    <ingress IP address>	 bsigroup.com.glasswall-icap.com www.bsigroup.com.glasswall-icap.com page.bsigroup.com.glasswall-icap.com
